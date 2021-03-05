@@ -1,11 +1,12 @@
 import datetime
+import os
 
 """
 Simple config file which can be updated as necessary - keeps all hard coded values outside of our class and allows
 for easy to edit
 """
 
-data_loc = "/home/roryjgarland/Documents/Projects/Satis.AI_coding/data/"
+data_loc = os.path.join(os.getcwd(), 'data')
 
 ing = {
     "B": "Bacon",
@@ -22,7 +23,7 @@ dkeys = [
     "Cooking_Time",
     "Assemble_Cap",
     "Assemble_Time",
-    "Package",
+    "Package_Cap",
     "Package_Time",
     "P",
     "L",
