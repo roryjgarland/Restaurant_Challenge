@@ -6,7 +6,7 @@ This is a repo dedicated towards solving the restaurant order challenge. A high 
 
     ├── README.md          <- The top-level README for this project.
     ├── config.py          <- Contains all the variable data in our problem
-    ├── config.py          <- Contains the data for our challenge
+    ├── data/              <- Contains the data for our challenge
     ├── order.py           <- Code containing order classes
     ├── restaurant.py      <- Code containing restaurant class
     ├── solution.py        <- Code containing the running of the problem
