@@ -28,7 +28,7 @@ Ensure you have pipenv installed.  If not, you can use the following command:
 
 ## A note on the the data
 
-As it can be seen in the sample_input.csv, the order of the data is actually incorrect. Earlier order numbers, i.e. 05, have a later time stamp vs other orders i.e. 06. This is left as is and is assumed that there may have been an outage. Otherwise, one could try and sort the data in an ordered fashion.
+As it can be seen in the sample_input.csv, the order of the data is actually incorrect. Earlier order numbers, i.e. 05, have a later time stamp vs other orders i.e. 06. This is left as is and is assumed to be wrong.
 
 
 ## Formatting
