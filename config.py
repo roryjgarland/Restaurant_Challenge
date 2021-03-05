@@ -1,3 +1,5 @@
+import datetime
+
 """
 Simple config file which can be updated as necessary - keeps all hard coded values outside of our class and allows
 for easy to edit
@@ -12,7 +14,7 @@ ing = {
     "V": "Veggie Burger",
 }
 
-max_time = 20
+max_time = datetime.timedelta(0, 20 * 60)
 
 dkeys = [
     "ID",
