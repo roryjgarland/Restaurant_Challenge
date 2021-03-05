@@ -1,4 +1,4 @@
-# Satis.AI_coding
+# Restaurant_Challenge
 
 ## Repository & Project Organisation
 
