@@ -10,7 +10,6 @@ This is a repo dedicated towards solving the restaurant order challenge. A high 
     ├── order.py           <- Code containing order classes
     ├── restaurant.py      <- Code containing restaurant class
     ├── solution.py        <- Code containing the running of the problem
-    ├── tests              <- Unit tests here
     ├── Pipfile            <- Pipenv requirements template.
 
 # Prerequisites
