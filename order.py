@@ -4,7 +4,7 @@ import datetime
 
 class OrderParser:
     """
-    Abstract class which is used to parse the various order types
+    Abstract class which is used to generate a child class for a given need i.e. reading in csv
     """
 
     def __init__(self):
@@ -17,7 +17,7 @@ class OrderParser:
 
 class CSVOrderParser(OrderParser):
     """
-    Separation of concerns - just in case there are different methods
+    Child class of OrderParser which looks to deal with csv only
     """
 
     def __init__(self):
@@ -34,11 +34,15 @@ class CSVOrderParser(OrderParser):
 
 
 class Order:
-    def __init__(self, o_id: str, time: str, r_id: str, orders: list):
+    """
+    Our order class which produces an order object containing the necessary information for an order
+    """
+
+    def __init__(self, o_id: str, time: str, r_id: str, orders: list) -> None:
         """
 
-        :param o_id: this is the id of the order
-        :param time: time of the order
+        :param o_id: type(str) this is the id of the order
+        :param time: type(str) time of the order
         :param r_id: type(str) restaurant
         :param orders: type(list) all of the orders taken
         """

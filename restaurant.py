@@ -1,10 +1,9 @@
 import datetime
-import os
 from collections import Counter
+from typing import List, Tuple, Union
 
 import config
-from order import Order, CSVOrderParser
-from typing import List
+from order import Order
 
 
 class Restaurant:
@@ -19,9 +18,20 @@ class Restaurant:
 
     To pass an order to the Restaurant, we can do the following
 
-    res.
+    res.accept(order)
+
+    This does two things, first it calls self.__check_capacity(order) which monitors which orders are currently in
+    flight and decides if another order can be undertaken or not. Depending on the various outcomes, an accept or reject
+    is returned. If enough time has passed, __check_capacity(order), will update the current capacity as previous orders
+    will have completed part of their operation. If enough time has passed, the order will be removed. The second thing
+    it does is returns a string output of the state of the order.
+
+    Following each of the orders, we produce our final statistics via
+
+    res.final_report()
 
     """
+
     def __init__(self, cfg: config, init_p: List[str]) -> None:
         """
         :param cfg: Config with meta parameters i.e ing, data loc, etc
@@ -32,7 +42,7 @@ class Restaurant:
         self.num_orders = 0
         self.total_time = datetime.timedelta(0, 0)
 
-        self.current_time = 0
+        self.current_time = datetime.timedelta(0, 0)  # the time at the restaurant
         self.orders_in_flight = []  # list of all the orders being done
         self.current_capacity = self.cfg.max_time
 
@@ -49,46 +59,17 @@ class Restaurant:
             except ValueError:
                 self.rest_metadata[k] = int(self.init_p[i + 1][0])
 
-    def accept(self, order: Order):
+    def accept(self, order: Order) -> None:
         """
-        :param order: Always an Order object to allow encapsulation
+        :param order: Order object containing relevant parameters
         :return:
         """
-
         a_or_r, time_order = self.__check_capacity(order)
-
-        if time_order > self.cfg.max_time:
-            time_order = ""
-
         print("{0}, {1}, {2}, {3}".format(order.r_id, order.o_id, a_or_r, time_order))
 
-    def time_cal(self, order) -> datetime.timedelta:
-        """
-        these ratios handle how many burgers can be assembled at once, as an example if we have 5 burgers with a
-        capacity of 4, 3, 2 our ratio is 5/4, 5/3, 5/2 for our total time!
-        :return: time take for order in minutes
-        """
-
-        order.c_time = datetime.timedelta(
-            0, min(self.num_orders, 4) * self.rest_metadata["Cooking_Time"] * 60
-        )
-        order.a_time = datetime.timedelta(
-            0, min(self.num_orders, 3) * self.rest_metadata["Assemble_Time"] * 60
-        )
-        order.p_time = datetime.timedelta(
-            0, min(self.num_orders, 2) * self.rest_metadata["Package_Time"] * 60
-        )
-
-        order.over_time = datetime.timedelta(
-            0,
-            (self.num_orders - 4) * self.rest_metadata["Cooking_Time"]
-            + (self.num_orders - 3) * self.rest_metadata["Assemble_Time"]
-            + (self.num_orders - 2) * self.rest_metadata["Package_Time"] * 60,
-        )
-
-        return order.c_time + order.a_time + order.p_time + order.over_time
-
-    def __check_capacity(self, order):
+    def __check_capacity(
+        self, order
+    ) -> Union[Tuple[str, str], Tuple[str, datetime.timedelta]]:
         """
         Function which checks capacity every time an order is called
         order
@@ -99,13 +80,14 @@ class Restaurant:
 
         # first we need to check if our current orders being processed has been updated
         for ord_in_f in self.orders_in_flight:
-
+            # going through to see if any of the parts of our order have finished
             if (
                 not ord_in_f.c_done
                 and self.current_time > ord_in_f.c_time + ord_in_f.time
             ):  # are the burgers cooked
                 self.current_capacity += ord_in_f.c_time
                 ord_in_f.c_done = True
+
             if (
                 not ord_in_f.a_done
                 and self.current_time
@@ -113,6 +95,7 @@ class Restaurant:
             ):  # have the burgers been assembled
                 self.current_capacity += ord_in_f.a_time
                 ord_in_f.a_done = True
+
             if (
                 not ord_in_f.p_done
                 and self.current_time
@@ -120,6 +103,7 @@ class Restaurant:
             ):  # havea the burgers been packed
                 self.current_capacity += ord_in_f.p_time
                 ord_in_f.p_done = True
+
             if (
                 not ord_in_f.p_done
                 and self.current_time
@@ -139,9 +123,10 @@ class Restaurant:
         )  # how long it takes to process the current order
 
         if time_order > self.cfg.max_time:
-            return "REJECT", time_order
+            return "REJECT", ""
         elif time_order > self.current_capacity:
-            return "REJECT", time_order
+            return "REJECT", ""
+        # checking to see if we have run out of ingredients
         elif (
             min(
                 self.rest_metadata["P"],
@@ -152,19 +137,17 @@ class Restaurant:
             )
             <= 0
         ):
-            return "REJECT", time_order
+            return "REJECT", ""
         else:
-
+            # updating our current capacity and time_order
             self.current_capacity -= time_order
             self.total_time += time_order
-
             self.orders_in_flight.append(order)
 
-            orders_j = "".join(
-                order.orders
-            )  # combining all of our c_orders into one list so we can use a Counter
+            # combining all of our c_orders into one list so we can use a Counter
+            orders_j = "".join(order.orders)
             num_ing_used = dict(Counter(orders_j))
-            num_ing_used["P"] = 2 * self.num_orders
+            num_ing_used["P"] = 2 * self.num_orders  # number of patties left
 
             # subtracting dictionaries generates a new dictionary
             new_ing = {
@@ -174,9 +157,50 @@ class Restaurant:
             # using update to overwrite our keys
             self.rest_metadata.update(new_ing)
 
+            del new_ing
+
             return "ACCEPT", time_order
 
-    def final_report(self):
+    def time_cal(self, order) -> datetime.timedelta:
+        """
+        Calculating the time it takes to produce the order. We use a penalty time if the restaurant goes over its
+        capacity
+        :return: time take for order in seconds
+        """
+
+        order.c_time = datetime.timedelta(
+            0,
+            min(self.num_orders, self.rest_metadata["Cooking_Cap"])
+            * self.rest_metadata["Cooking_Time"]
+            * 60,
+        )
+        order.a_time = datetime.timedelta(
+            0,
+            min(self.num_orders, self.rest_metadata["Assemble_Cap"])
+            * self.rest_metadata["Assemble_Time"]
+            * 60,
+        )
+        order.p_time = datetime.timedelta(
+            0,
+            min(self.num_orders, self.rest_metadata["Package_Cap"])
+            * self.rest_metadata["Package_Time"]
+            * 60,
+        )
+
+        order.over_time = datetime.timedelta(
+            0,
+            (self.num_orders - self.rest_metadata["Cooking_Cap"])
+            * self.rest_metadata["Cooking_Time"]
+            + (self.num_orders - self.rest_metadata["Assemble_Cap"])
+            * self.rest_metadata["Assemble_Time"]
+            + (self.num_orders - self.rest_metadata["Package_Cap"])
+            * self.rest_metadata["Package_Time"]
+            * 60,
+        )
+
+        return order.c_time + order.a_time + order.p_time + order.over_time
+
+    def final_report(self) -> None:
         """
         Function which produces the report of the restaurant
         :return:
@@ -192,21 +216,3 @@ class Restaurant:
                 self.rest_metadata["B"],
             )
         )
-
-
-if __name__ == "__main__":
-    inp_csv = os.path.join(config.data_loc, "sample_input.csv")
-
-    with open(inp_csv, "r") as f:
-        meta_csv = [line.split(",") for line in f.read().splitlines()]
-        f.close()
-
-    res = Restaurant(config, meta_csv[0])
-
-    for val in meta_csv[1:]:
-        val_o = CSVOrderParser().parse_order(val)
-        res.accept(val_o)
-    res.final_report()
-
-    # create dictionary which maps restaurant to instance
-    hello_dic = {"R1": Restaurant, "R2": Restaurant}

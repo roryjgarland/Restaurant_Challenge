@@ -6,7 +6,7 @@ Simple config file which can be updated as necessary - keeps all hard coded valu
 for easy to edit
 """
 
-data_loc = os.path.join(os.getcwd(), 'data')
+data_loc = os.path.join(os.getcwd(), "data")
 
 ing = {
     "B": "Bacon",
