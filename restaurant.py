@@ -42,7 +42,7 @@ class Restaurant:
         self.num_orders = 0
         self.total_time = datetime.timedelta(0, 0)
 
-        self.current_time = datetime.timedelta(0, 0)  # the time at the restaurant
+        self.current_time = datetime.datetime.utcfromtimestamp(0)  # the time at the restaurant
         self.orders_in_flight = []  # list of all the orders being done
         self.current_capacity = self.cfg.max_time
 
@@ -67,6 +67,7 @@ class Restaurant:
         a_or_r, time_order = self.__check_capacity(order)
         print("{0}, {1}, {2}, {3}".format(order.r_id, order.o_id, a_or_r, time_order))
 
+    #todo: check capacity needs to be rewritten
     def __check_capacity(
         self, order
     ) -> Union[Tuple[str, str], Tuple[str, datetime.timedelta]]:
@@ -75,6 +76,9 @@ class Restaurant:
         order
         :return:
         """
+
+        if self.current_time > order.time:
+            return self.__reject_order()
 
         self.current_time = order.time
 
@@ -100,7 +104,7 @@ class Restaurant:
                 not ord_in_f.p_done
                 and self.current_time
                 > ord_in_f.p_time + ord_in_f.a_time + ord_in_f.c_time + ord_in_f.time
-            ):  # havea the burgers been packed
+            ):  # have the burgers been packed
                 self.current_capacity += ord_in_f.p_time
                 ord_in_f.p_done = True
 
@@ -123,9 +127,9 @@ class Restaurant:
         )  # how long it takes to process the current order
 
         if time_order > self.cfg.max_time:
-            return "REJECT", ""
+            return self.__reject_order()
         elif time_order > self.current_capacity:
-            return "REJECT", ""
+            return self.__reject_order()
         # checking to see if we have run out of ingredients
         elif (
             min(
@@ -137,7 +141,7 @@ class Restaurant:
             )
             <= 0
         ):
-            return "REJECT", ""
+            return self.__reject_order()
         else:
             # updating our current capacity and time_order
             self.current_capacity -= time_order
@@ -160,6 +164,10 @@ class Restaurant:
             del new_ing
 
             return "ACCEPT", time_order
+
+    @staticmethod
+    def __reject_order():
+        return "REJECT", ''
 
     def time_cal(self, order) -> datetime.timedelta:
         """
