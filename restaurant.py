@@ -3,12 +3,16 @@ from collections import Counter
 from typing import List, Tuple, Union
 
 import config
-from order import Order
+from order import Order, MonitorOrder
 
 
 class Restaurant:
     """
-    Our restaurant class which takes in a config file and initial parameters to construct it. i.e.
+    We approach this problem by using discrete time step i.e. when an order comes in, it sets our time in the restaurant
+    to that and we calculate our capacity using this information. When the next order comes in, we move forward in time
+    that much and calculate where our orders are.
+
+    The restaurant class which takes in a config file and initial parameters to construct it. i.e.
 
     res = Restaurant(cfg, init_p)
 
@@ -20,13 +24,14 @@ class Restaurant:
 
     res.accept(order)
 
-    This does two things, first it calls self.__check_capacity(order) which monitors which orders are currently in
-    flight and decides if another order can be undertaken or not. Depending on the various outcomes, an accept or reject
-    is returned. If enough time has passed, __check_capacity(order), will update the current capacity as previous orders
-    will have completed part of their operation. If enough time has passed, the order will be removed. The second thing
-    it does is returns a string output of the state of the order.
+    accept then calls self.__check_capacity(order) which works as follows:
 
-    Following each of the orders, we produce our final statistics via
+    1) Check that our order time is ahead of restaurant time, otherwise we reject the order
+    2) Update our current capacity by seeing how much we have moved in time via self.__update_capacity()
+    3) Using the updated times and capacity, check if we can handle the order
+    4) If we can, update the ingredients, capacity etc
+
+    Following the orders, we produce our final statistics via
 
     res.final_report()
 
@@ -42,7 +47,9 @@ class Restaurant:
         self.num_orders = 0
         self.total_time = datetime.timedelta(0, 0)
 
-        self.current_time = datetime.datetime.utcfromtimestamp(0)  # the time at the restaurant
+        self.current_time = datetime.datetime.utcfromtimestamp(
+            0
+        )  # the time at the restaurant
         self.orders_in_flight = []  # list of all the orders being done
         self.current_capacity = self.cfg.max_time
 
@@ -67,7 +74,6 @@ class Restaurant:
         a_or_r, time_order = self.__check_capacity(order)
         print("{0}, {1}, {2}, {3}".format(order.r_id, order.o_id, a_or_r, time_order))
 
-    #todo: check capacity needs to be rewritten
     def __check_capacity(
         self, order
     ) -> Union[Tuple[str, str], Tuple[str, datetime.timedelta]]:
@@ -77,58 +83,22 @@ class Restaurant:
         :return:
         """
 
+        # first we check if our restaurant time is ahead of our order time, if so we cannot process orders in the past
         if self.current_time > order.time:
             return self.__reject_order()
 
+        # if the order time is in the future, we update
         self.current_time = order.time
 
-        # first we need to check if our current orders being processed has been updated
-        for ord_in_f in self.orders_in_flight:
-            # going through to see if any of the parts of our order have finished
-            if (
-                not ord_in_f.c_done
-                and self.current_time > ord_in_f.c_time + ord_in_f.time
-            ):  # are the burgers cooked
-                self.current_capacity += ord_in_f.c_time
-                ord_in_f.c_done = True
+        # now that time has advanced, we update our work flow in the restaurant
+        self.__update_capacity()
 
-            if (
-                not ord_in_f.a_done
-                and self.current_time
-                > ord_in_f.a_time + ord_in_f.c_time + ord_in_f.time
-            ):  # have the burgers been assembled
-                self.current_capacity += ord_in_f.a_time
-                ord_in_f.a_done = True
+        # calculating the time for an order
+        monitor_order = self.time_cal(order)
 
-            if (
-                not ord_in_f.p_done
-                and self.current_time
-                > ord_in_f.p_time + ord_in_f.a_time + ord_in_f.c_time + ord_in_f.time
-            ):  # have the burgers been packed
-                self.current_capacity += ord_in_f.p_time
-                ord_in_f.p_done = True
-
-            if (
-                not ord_in_f.p_done
-                and self.current_time
-                > ord_in_f.p_time
-                + ord_in_f.a_time
-                + ord_in_f.c_time
-                + ord_in_f.time
-                + ord_in_f.over_time
-            ):  # have we also done the penalty time too
-                self.current_capacity += ord_in_f.over_time
-                ord_in_f.over_time = True
-                self.orders_in_flight.pop(ord_in_f)
-
-        self.num_orders = len(order.orders)
-        time_order = self.time_cal(
-            order
-        )  # how long it takes to process the current order
-
-        if time_order > self.cfg.max_time:
-            return self.__reject_order()
-        elif time_order > self.current_capacity:
+        # can we handle this order?
+        # max current_capacity can be is 20
+        if monitor_order.total_time > self.current_capacity:
             return self.__reject_order()
         # checking to see if we have run out of ingredients
         elif (
@@ -144,14 +114,14 @@ class Restaurant:
             return self.__reject_order()
         else:
             # updating our current capacity and time_order
-            self.current_capacity -= time_order
-            self.total_time += time_order
-            self.orders_in_flight.append(order)
+            self.current_capacity -= monitor_order.total_time
+            self.total_time += monitor_order.total_time
+            self.orders_in_flight.append(monitor_order)
 
             # combining all of our c_orders into one list so we can use a Counter
             orders_j = "".join(order.orders)
             num_ing_used = dict(Counter(orders_j))
-            num_ing_used["P"] = 2 * self.num_orders  # number of patties left
+            num_ing_used["P"] = 2 * order.num_orders  # number of patties left
 
             # subtracting dictionaries generates a new dictionary
             new_ing = {
@@ -163,50 +133,48 @@ class Restaurant:
 
             del new_ing
 
-            return "ACCEPT", time_order
+            return "ACCEPT", monitor_order.total_time
+
+    def __update_capacity(self) -> None:
+        # first we need to check if our current orders being processed has been updated
+        for ord_in_f in self.orders_in_flight:
+            # going through to see if any of the parts of our order have finished
+            if (
+                not ord_in_f.c_done and self.current_time > ord_in_f.c_complete
+            ):  # are the burgers cooked
+                self.current_capacity += ord_in_f.c_time
+                ord_in_f.c_done = True
+
+            if (
+                not ord_in_f.a_done and self.current_time > ord_in_f.a_complete
+            ):  # have the burgers been assembled
+                self.current_capacity += ord_in_f.a_time
+                ord_in_f.a_done = True
+
+            if (
+                not ord_in_f.p_done and self.current_time > ord_in_f.p_complete
+            ):  # have the burgers been packed
+                self.current_capacity += ord_in_f.p_time
+                ord_in_f.p_done = True
+
+            if (
+                not ord_in_f.p_done and self.current_time > ord_in_f.complete_time
+            ):  # have we also done the penalty time too
+                self.current_capacity += ord_in_f.over_time
+                ord_in_f.over_time = True
+                self.orders_in_flight.pop(ord_in_f)
 
     @staticmethod
-    def __reject_order():
-        return "REJECT", ''
+    def __reject_order() -> Tuple[str, str]:
+        return "REJECT", ""
 
-    def time_cal(self, order) -> datetime.timedelta:
+    def time_cal(self, order) -> MonitorOrder:
         """
         Calculating the time it takes to produce the order. We use a penalty time if the restaurant goes over its
         capacity
         :return: time take for order in seconds
         """
-
-        order.c_time = datetime.timedelta(
-            0,
-            min(self.num_orders, self.rest_metadata["Cooking_Cap"])
-            * self.rest_metadata["Cooking_Time"]
-            * 60,
-        )
-        order.a_time = datetime.timedelta(
-            0,
-            min(self.num_orders, self.rest_metadata["Assemble_Cap"])
-            * self.rest_metadata["Assemble_Time"]
-            * 60,
-        )
-        order.p_time = datetime.timedelta(
-            0,
-            min(self.num_orders, self.rest_metadata["Package_Cap"])
-            * self.rest_metadata["Package_Time"]
-            * 60,
-        )
-
-        order.over_time = datetime.timedelta(
-            0,
-            (self.num_orders - self.rest_metadata["Cooking_Cap"])
-            * self.rest_metadata["Cooking_Time"]
-            + (self.num_orders - self.rest_metadata["Assemble_Cap"])
-            * self.rest_metadata["Assemble_Time"]
-            + (self.num_orders - self.rest_metadata["Package_Cap"])
-            * self.rest_metadata["Package_Time"]
-            * 60,
-        )
-
-        return order.c_time + order.a_time + order.p_time + order.over_time
+        return MonitorOrder(order, self.rest_metadata)
 
     def final_report(self) -> None:
         """
