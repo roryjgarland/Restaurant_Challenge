@@ -23,14 +23,21 @@ class CSVOrderParser(OrderParser):
     def __init__(self):
         super(CSVOrderParser, self).__init__()
 
-    def parse_order(self, order: list):
+    def parse_order(self, order_str: str):
         """
         Function which converts our specific input, list[str], into an order class
-        :param order:
+        :param order_str:
         :return:
         """
         # parse order R1,2020-12-08 19:15:31,O1,BLT,LT,VLT
-        return Order(order[2], order[1], order[0], order[3:])
+        order = order_str.split(',')
+
+        try:
+            time = datetime.datetime.strptime(order[1], "%Y-%m-%d %H:%M:%S")
+        except:
+            return None
+
+        return Order(order[2], time, order[0], order[3:])
 
 
 class Order:
@@ -38,7 +45,7 @@ class Order:
     Our order class which produces an order object containing the necessary information for an order
     """
 
-    def __init__(self, o_id: str, time: str, r_id: str, orders: list) -> None:
+    def __init__(self, o_id: str, time: datetime.datetime, r_id: str, orders: list) -> None:
         """
 
         :param o_id: type(str) this is the id of the order
@@ -48,10 +55,11 @@ class Order:
         """
 
         self.o_id = o_id
-        self.time = datetime.datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
+        self.time = time
         self.r_id = r_id
         self.orders = orders
 
+        # todo: this is bad, very bad -> pull out
         # keeping track of our times to complete each aspect and if they have been completed
         self.c_time = 0
         self.c_done = False

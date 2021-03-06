@@ -8,12 +8,12 @@ if __name__ == "__main__":
     inp_csv = os.path.join(config.data_loc, "sample_input.csv")
 
     with open(inp_csv, "r") as f:
-        meta_csv = [line.split(",") for line in f.read().splitlines()]
+        meta_res = f.readline().split(',')
+        orders = [CSVOrderParser().parse_order(line) for line in f.read().splitlines()]
         f.close()
 
-    res = Restaurant(config, meta_csv[0])
+    res = Restaurant(config, meta_res)
 
-    for val in meta_csv[1:]:
-        val_o = CSVOrderParser().parse_order(val)
-        res.accept(val_o)
+    for val in orders:
+        res.accept(val)
     res.final_report()
