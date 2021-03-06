@@ -75,12 +75,12 @@ class MonitorOrder:
 
     """
 
-    def __init__(self, order, meta_dic):
+    def __init__(self, order, meta_dic: dict):
         self.time = order.time
 
         # keeping track of our times to complete each aspect and if they have been completed
 
-        # Cooking Time
+        # Cooking
 
         self.c_time = datetime.timedelta(
             0,
@@ -92,6 +92,7 @@ class MonitorOrder:
         self.c_complete = self.time + self.c_time
         self.c_done = False
 
+        # assembly
         self.a_time = datetime.timedelta(
             0,
             min(order.num_orders, meta_dic["Assemble_Cap"])
@@ -103,6 +104,7 @@ class MonitorOrder:
 
         self.a_done = False
 
+        # packing
         self.p_time = datetime.timedelta(
             0,
             min(order.num_orders, meta_dic["Package_Cap"])

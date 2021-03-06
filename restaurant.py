@@ -75,12 +75,12 @@ class Restaurant:
         print("{0}, {1}, {2}, {3}".format(order.r_id, order.o_id, a_or_r, time_order))
 
     def __check_capacity(
-        self, order
+        self, order: Order
     ) -> Union[Tuple[str, str], Tuple[str, datetime.timedelta]]:
         """
         Function which checks capacity every time an order is called
-        order
-        :return:
+        order: Order object containing information on the order
+        :return: Either a rejection note or acceptance and time taken
         """
 
         # first we check if our restaurant time is ahead of our order time, if so we cannot process orders in the past
@@ -168,11 +168,12 @@ class Restaurant:
     def __reject_order() -> Tuple[str, str]:
         return "REJECT", ""
 
-    def time_cal(self, order) -> MonitorOrder:
+    def time_cal(self, order: Order) -> MonitorOrder:
         """
         Calculating the time it takes to produce the order. We use a penalty time if the restaurant goes over its
         capacity
-        :return: time take for order in seconds
+        order: Order object containing information on the order
+        :return: Instance of the MonitorOrder class
         """
         return MonitorOrder(order, self.rest_metadata)
 
