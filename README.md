@@ -39,3 +39,6 @@ Please note that black was used to format the code to adhere to pep8 rules.
 This is sequential in orders and could be improved. i.e. if we have an order of 5 burgers, we currently just add on a 
 penalty and then process the next order. However, if we were to have an order of 3 burgers to come in afterwards we 
 could possibly cook these at the same time thus speeding up time!
+
+
+Have a dictionary which tracks all orders and times to do orders. This allows us to see a history of the orders and what the most popular order type/amount was, thus allowing us to better prepare.
